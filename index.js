@@ -1,6 +1,8 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const fs = require("fs");
+const https = require("https");
 
 const app = express();
 app.use(bodyParser.json());
@@ -16,9 +18,17 @@ app.use(cors());
     }
   });
 
-app.listen(3000, function () {
-    console.log(' port 3000!');
+  https.createServer({
+    key: fs.readFileSync('../etc/letsencrypt/live/www.jeancarlos.website/privkey.pem'),
+    cert: fs.readFileSync('../etc/letsencrypt/live/www.jeancarlos.website/fullchain.pem')
+  }, app)
+  .listen(80, function () {
+    console.log('listening on port 80 over https')
   })
+
+  app.get('/', (req, res) => {
+   res.json("it`s working!")
+  });
   
 
 app.get('/funcionario/:id', (req, res) => {
@@ -39,6 +49,17 @@ app.get('/funcionario/:id', (req, res) => {
   app.get("/funcionarios", (req, res) => {
     db.select('*')
     .from('funcionarios')
+    .then(data => {
+            return res.status(200).json({
+              data
+            });
+    })
+    .catch(err => res.status(400).json('unable to get'));
+  });
+
+  app.get("/epis", (req, res) => {
+    db.select('*')
+    .from('epis')
     .then(data => {
             return res.status(200).json({
               data
