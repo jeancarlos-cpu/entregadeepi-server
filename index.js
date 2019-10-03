@@ -52,6 +52,20 @@ app.get('/funcionario/:id', (req, res) => {
     .catch(err => res.status(400).json('unable to get'));
 });
 
+app.get('/epi/:id', (req, res) => {
+  const id = req.params.id;
+
+  db.select('*')
+    .from('epis')
+    .where('epi_id', '=', id)
+    .then(data => {
+      return res.status(200).json({
+        data
+      });
+    })
+    .catch(err => res.status(400).json('unable to get'));
+});
+
 
 app.get("/funcionarios", (req, res) => {
   db.select('*')
@@ -75,20 +89,59 @@ app.get("/epis", (req, res) => {
     .catch(err => res.status(400).json('unable to get'));
 });
 
+app.get("/registros", (req, res) => {
+  db.select('*')
+    .from('registros')
+    .then(data => {
+      return res.status(200).json({
+        data
+      });
+    })
+    .catch(err => res.status(400).json('unable to get'));
+});
+
 app.post('/signin', (req, res) => {
   db.select('*')
-      .from('users')
-      .where('email', '=', req.body.email)
-      .then(data => {
-        console.log(data[0]);
-          const isValid = req.body.password === data[0].hash;
-          if (isValid) {
-              return res.status(200).json({
-                id: data[0].user_id,
-              });
-          } else {
-              res.status(400).json('wrong credentials');
-          }
-      })
-      .catch(err => res.status(400).json('unable to signin'));
+    .from('users')
+    .where('email', '=', req.body.email)
+    .then(data => {
+      console.log(data[0]);
+      const isValid = req.body.password === data[0].hash;
+      if (isValid) {
+        return res.status(200).json({
+          id: data[0].user_id,
+        });
+      } else {
+        res.status(400).json('wrong credentials');
+      }
+    })
+    .catch(err => res.status(400).json('unable to signin'));
+})
+
+app.post('/saidaepi', async (req, res) => {
+  const data = req.body;
+  const funcionario_id = Number(data.funcionario_id);
+  const epi_id = Number(data.epi_id);
+  const matricula = Number(data.matricula);
+  const quantidade = Number(data.quantidade);
+  const motivo = Number(data.motivo);
+
+  const epi = await db.select('codigo_epi', 'descricao')
+    .from('epis')
+    .where('epi_id', '=', epi_id)
+    .then(data => {
+      return data[0]
+    });
+
+  const funcionario = await db.select('matricula', 'nome', 'cargo')
+    .from('funcionarios')
+    .where('funcionario_id', '=', funcionario_id)
+    .then(data => {
+      return data[0]
+    });
+
+  db('registros').insert(
+    Object.assign({ saida: new Date() }, { matricula }, epi, funcionario, { quantidade }, { motivo })
+  )
+    .then(res.json("OK"))
 })
