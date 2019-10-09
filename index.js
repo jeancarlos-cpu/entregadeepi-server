@@ -20,7 +20,7 @@ const db = require('knex')({
 });
 
 https.createServer({
-  key: fs.readFileSync('../../etc/letsencrypt/live/www.jeancarlos.website/cert.privkey.pem'),
+  key: fs.readFileSync('../../etc/letsencrypt/live/www.jeancarlos.website/privkey.pem'),
   cert: fs.readFileSync('../../etc/letsencrypt/live/www.jeancarlos.website/cert.pem'),
   ca: fs.readFileSync('../../etc/letsencrypt/live/www.jeancarlos.website/chain.pem'),
 }, app)
@@ -28,9 +28,9 @@ https.createServer({
     console.log('listening on port 443 over HTTPS')
   });
 
-http.createServer(app).listen(80, () => {
-  console.log('Listening 80 over HTTP')
-})
+// http.createServer(app).listen(80, () => {
+//   console.log('Listening 80 over HTTP')
+// })
 
 
 app.get('/', (req, res) => {
@@ -100,12 +100,23 @@ app.get("/registros", (req, res) => {
     .catch(err => res.status(400).json('unable to get'));
 });
 
+app.get("/autorizadores", (req, res) => {
+  db.select('*')
+    .from('funcionarios')
+    .where('autorizador', '=', true)
+    .then(data => {
+      return res.status(200).json({
+        data
+      });
+    })
+    .catch(err => res.status(400).json('unable to get'));
+});
+
 app.post('/signin', (req, res) => {
   db.select('*')
     .from('users')
     .where('email', '=', req.body.email)
     .then(data => {
-      console.log(data[0]);
       const isValid = req.body.password === data[0].hash;
       if (isValid) {
         return res.status(200).json({
@@ -121,6 +132,7 @@ app.post('/signin', (req, res) => {
 app.post('/saidaepi', async (req, res) => {
   const data = req.body;
   const funcionario_id = Number(data.funcionario_id);
+  const autorizador_id = Number(data.autorizador_id);
   const epi_id = Number(data.epi_id);
   const matricula = Number(data.matricula);
   const quantidade = Number(data.quantidade);
@@ -140,8 +152,18 @@ app.post('/saidaepi', async (req, res) => {
       return data[0]
     });
 
+  const autorizador = await db.select('matricula')
+    .from('funcionarios')
+    .where('funcionario_id', '=', autorizador_id)
+    .then(data => {
+      return data[0]
+    });
+
+  const autorizador_matricula = String(autorizador.matricula);
+
   db('registros').insert(
-    Object.assign({ saida: new Date() }, { matricula }, epi, funcionario, { quantidade }, { motivo })
+
+    Object.assign({ saida: new Date() }, { matricula }, epi, funcionario, { quantidade }, { motivo }, { autorizador: autorizador_matricula })
   )
     .then(res.json("OK"))
 })
